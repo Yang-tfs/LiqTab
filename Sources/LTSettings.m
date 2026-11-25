@@ -311,6 +311,11 @@ static NSArray *LTBuildDetailSections(void) {
     id haptics = LTMakeSwitch(@"haptics", @"点击震动反馈", nil);
     if (haptics) [items addObject:haptics];
 
+    // 调试日志（默认关：LTMakeSwitch 对未设置项默认 YES，这里显式写默认值 NO）
+    if (![LTPrefs valueForSettingKey:@"debugLog"]) [LTPrefs setValue:@NO forSettingKey:@"debugLog"];
+    id debug = LTMakeSwitch(@"debugLog", @"调试日志", @"需重启抖音，日志输出到控制台");
+    if (debug) [items addObject:debug];
+
     id sec1 = LTMakeSection(@"外观", @"设置即时生效，无需重启抖音", items);
 
     // 尺寸（写入实际 pt 数值）
@@ -330,9 +335,19 @@ static NSArray *LTBuildDetailSections(void) {
     if (height) [sizeItems addObject:height];
     id sec2 = LTMakeSection(@"尺寸", nil, sizeItems);
 
+    // 运行模式：默认自动，原生不生效时必定用自绘兜底
+    NSInteger modeIdx = [LTPrefs mode];
+    id mode = LTMakeChoice(@"mode", @"运行模式",
+                           @[@"自动（推荐）", @"纯自绘", @"仅原生"],
+                           modeIdx, nil);
+    NSMutableArray *modeItems = [NSMutableArray array];
+    if (mode) [modeItems addObject:mode];
+    id sec3 = LTMakeSection(@"高级", @"纯自绘=只用玻璃胶囊；仅原生=只试抖音自带实现", modeItems);
+
     NSMutableArray *result = [NSMutableArray array];
     if (sec1) [result addObject:sec1];
     if (sec2) [result addObject:sec2];
+    if (sec3) [result addObject:sec3];
     return result;
 }
 

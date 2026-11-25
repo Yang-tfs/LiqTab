@@ -160,7 +160,9 @@ BOOL LTDYYYDetected(void) {
     if (self = [super init]) {
         _hostBar = tabBar;
         _items = [NSMutableArray array];
-        _overlayMode = YES;   // 始终：玻璃只做原生按钮的背景层，图标/点击全交给抖音
+        // 独立模式优先（自建胶囊必定可见）；若拿不到按钮数组则退回叠加模式。
+    NSArray *buttons = LTGet(tabBar, @"tabBarButtons");
+    _overlayMode = ![buttons isKindOfClass:[NSArray class]] || buttons.count == 0;
         // 必须先设置关联对象，否则 addSubview 触发的 layout 会重复创建。
         objc_setAssociatedObject(tabBar, &kLTMirrorKey, self, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         [self build];
@@ -183,8 +185,7 @@ BOOL LTDYYYDetected(void) {
     [_container addSubview:_glass];
 
     if (self.overlayMode) {
-        // ── DYYY 共存：玻璃作为原生底栏的背景层（在按钮下面）──
-        // 清除原生底栏自带的背景，让玻璃透出来。
+        // ── 兜底叠加模式：拿不到按钮数组时，玻璃作为原生底栏的背景层 ──
         [self prepareNativeBar:bar];
         [bar insertSubview:_container atIndex:0];
         // 防止被 DYYY / UIKit 的子视图插入挤到上面去，记录并保持最底层。
@@ -255,8 +256,8 @@ BOOL LTDYYYDetected(void) {
     LTLog(@"DYYY 共存：已清空原生底栏背景，玻璃将作为按钮背景");
 }
 
-// 把底栏自带的背景子视图压成透明（DYYY/UIKit 可能重建，所以每次轮询都兜底）。
-- (void)hideBarBackgroundSubviews:(UIView *)bar {
+// 把底栏自带的背景子视图压成透明（只隐藏明确的背景类，绝不碰按钮）。
+- (void)hideBarBackgroundSubviews:(UIView *)bar buttons:(NSArray *)buttons {
     for (UIView *v in bar.subviews) {
         if (v == _container) continue;
         NSString *cn = NSStringFromClass([v class]);
@@ -264,10 +265,13 @@ BOOL LTDYYYDetected(void) {
             [cn containsString:@"EffectBackground"] ||
             [cn containsString:@"BlurView"] ||
             [cn containsString:@"GradientView"] ||
-            [cn containsString:@"BackgroundView"]) {
+            [cn containsString:@"BackgroundView"] ||
+            [cn containsString:@"SkinContainer"]) {
             if (v.alpha != 0.0) v.alpha = 0.0;
         }
     }
+    bar.backgroundColor = [UIColor clearColor];
+    bar.opaque = NO;
     // 保证玻璃始终在最底层（按钮之后插入的新视图不能盖住它）。
     if (_container.superview == bar && bar.subviews.firstObject != _container && !_container.hidden) {
         [bar sendSubviewToBack:_container];
@@ -303,7 +307,7 @@ BOOL LTDYYYDetected(void) {
 #pragma mark - DYYY 共存：玻璃垫在原生按钮下面
 
 - (void)layoutOverlayGlass:(UIView *)bar buttons:(NSArray *)buttons {
-    [self hideBarBackgroundSubviews:bar];
+    [self hideBarBackgroundSubviews:bar buttons:buttons];
 
     CGRect b = bar.bounds;
     CGFloat safeBottom = bar.safeAreaInsets.bottom;

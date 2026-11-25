@@ -158,7 +158,8 @@ static BOOL LTTryForceOnView(id view) {
 }
 
 static void LTProbeSubviewsRecursively(UIView *v, NSArray<NSString *> *classNames, int depth) {
-    if (!v || depth > 6) return;
+    // 与 Tweak.m 同步加深：抖音视图层级可能 >6 层，原来 6 层就放弃导致找不到目标。
+    if (!v || depth > 32) return;
     NSString *cn = NSStringFromClass([v class]);
     for (NSString *wanted in classNames) {
         if ([cn containsString:wanted]) { LTTryForceOnView(v); break; }

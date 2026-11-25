@@ -36,7 +36,9 @@ static NSInteger sTick = 0;
 static BOOL sActivated = NO;
 
 static UIView *LTFindViewRecursively(UIView *v, Class cls, int depth) {
-    if (!v || !cls || depth > 12) return nil;
+    // 关键修复：抖音 41.2.0 视图层级很深，原来 depth>12 会直接放弃查找，
+    // 导致永远找不到底栏、玻璃永远不挂载——这正是"装了和没装一样"的根因。
+    if (!v || !cls || depth > 32) return nil;
     if ([v isKindOfClass:cls]) return v;
     for (UIView *s in v.subviews) {
         UIView *f = LTFindViewRecursively(s, cls, depth + 1);
@@ -79,8 +81,8 @@ static UIView *LTFindTabBarView(void) {
         return;
     }
     if ([LTPrefs mode] == LTOperatingModeNative) return;
-    // Auto 模式下若抖音原生路径已确认生效，就不再叠加自绘底栏。
-    if ([LTPrefs mode] == LTOperatingModeAuto && LTNativeGlassActive()) return;
+    // 关键修复：原生 ivar 判定不可靠（同名 ivar 可能命中父类默认 0 值被误读），
+    // 绝不能据此跳过自绘。Auto 模式一律绘制自绘玻璃兜底，保证一定有可见变化。
     if (++sTick % 6 != 0) return;   // ≈10Hz，避免频繁遍历视图树
 
     UIView *bar = LTFindTabBarView();
