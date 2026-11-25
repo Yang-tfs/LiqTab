@@ -22,6 +22,8 @@ void LTInstallNativeGlassHooks(void);
 void LTForceNativeFlagsNow(void);
 void LTProbeNativeGlassViews(void);
 void LTInstallSettingsHooks(void);
+void LTInstallNativeDirectCallHooks(void);
+void LTForceNativeGlassSweep(void);
 
 static UIView *LTFindTabBarView(void);
 static UIView *LTFindViewRecursively(UIView *v, Class cls, int depth);
@@ -77,6 +79,8 @@ static UIView *LTFindTabBarView(void) {
         return;
     }
     if ([LTPrefs mode] == LTOperatingModeNative) return;
+    // Auto 模式下若抖音原生路径已确认生效，就不再叠加自绘底栏。
+    if ([LTPrefs mode] == LTOperatingModeAuto && LTNativeGlassActive()) return;
     if (++sTick % 6 != 0) return;   // ≈10Hz，避免频繁遍历视图树
 
     UIView *bar = LTFindTabBarView();
@@ -117,9 +121,15 @@ static void LTActivate(void) {
     LTLog(@"激活：DYYY %@", dyyy ? @"已检测到" : @"未检测到");
 
     // 仅在明确没有 DYYY 时才考虑动 ABTest（有 DYYY 时它的拦截会破坏链路）。
-    if (!dyyy && [LTPrefs forceNativeFlags] && [LTPrefs mode] == LTOperatingModeNative) {
+    // Auto / Native 模式都尝试抖音自带实现（Auto 模式下若原生不生效则继续用自绘兜底）。
+    // Custom 模式完全跳过，避免与 DYYY 的 ABTest 管理冲突。
+    BOOL wantsNative = ([LTPrefs mode] == LTOperatingModeNative ||
+                        [LTPrefs mode] == LTOperatingModeAuto);
+    if (!dyyy && [LTPrefs forceNativeFlags] && wantsNative) {
         LTInstallNativeGlassHooks();
         LTForceNativeFlagsNow();
+        LTInstallNativeDirectCallHooks();
+        LTForceNativeGlassSweep();   // 底栏可能已经建好，立刻扫一遍
         LTProbeNativeGlassViews();
     }
 

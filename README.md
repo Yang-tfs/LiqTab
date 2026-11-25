@@ -148,13 +148,18 @@ killall Aweme
 
 ---
 
-## 三种模式说明
+## 三种模式说明（v2 已更新）
 
-- **模式 0（自动，默认）**：同时开启抖音自带的 fake liquid glass 开关，并安装自绘玻璃胶囊。如果你发现抖音自带实现已经生效且效果更好，可以切到模式 2。
-- **模式 1（纯自绘）**：不注入 ABTest，只使用自绘玻璃（适合抖音自带实现有 bug 时）。
-- **模式 2（仅原生）**：只强制 ABTest 开关，完全不创建自绘底栏。适合想验证抖音自带 fake liquid glass 效果的用户。
+- **模式 0（自动，默认）**：先尝试抖音自带液态玻璃（ABTest 注入 + 生命周期内直调 `enableFakeLiquidGlass`）；若未确认生效，自动回落到自绘玻璃胶囊。这是推荐模式。
+- **模式 1（纯自绘）**：完全跳过抖音原生路径，只使用自绘玻璃（适合原生路径有 bug 时）。
+- **模式 2（仅原生）**：只强制抖音自带实现（ABTest + 直调），不创建自绘底栏。
 
-由于我无法在你的设备上实机测试，建议先尝试 **模式 2**，看抖音自带开关是否能在 iOS 16.3.1 上直接出效果；如果不能，再回到模式 0 或 1 使用自绘玻璃。
+**原生路径做了什么**（`LTNativeGlassEnabler.m`）：
+1. swizzle `-[AWEABTestManager setAbTestData:]`，对 4 个液态玻璃 key 强制写 `@YES`，并在激活时立刻读-改-写一次；
+2. hook `-[AWELGNormalModeTabBarFullAbilityView layoutSubviews]` 与 `-[AWENormalModeTabBar didMoveToWindow]`，在原生布局完成后调用 `enableFakeLiquidGlass`（不存在时回退 `enableLiquidGlass`）+ `layoutLiquidGlass`；
+3. 通过读取 `_enableFakeLiquidGlass` / `_enableLiquidGlass` ivar（按内存偏移直接读 BOOL，不走 KVC）判断是否真的生效；生效后自动模式不再叠加自绘底栏。
+
+**自绘材质**：iOS 16 上优先使用私有 `_UICustomBlurEffect`（KVC 设 `blurRadius` / `saturationFactor` / `colorTint` / `zoom`），巨魔环境可用；失败时回落公开 `UIBlurEffect`。`zoom=1.06` 制造背景轻微放大的折射错觉，比系统 material 更接近 iOS 26 液态玻璃。
 
 ---
 

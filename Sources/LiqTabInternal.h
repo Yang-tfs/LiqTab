@@ -39,6 +39,11 @@ typedef NS_ENUM(NSInteger, LTOperatingMode) {
 extern NSString * const LTSettingsDidChangeNotification;
 void LTInstallSettingsHooks(void);   // 在设置面板注入 LiqTab 入口（LTSettings.m）
 
+#pragma mark - Native liquid glass
+BOOL LTNativeGlassActive(void);                 // 抖音自带液态玻璃是否确认生效
+void LTInstallNativeDirectCallHooks(void);      // hook 生命周期并直调 enableFakeLiquidGlass 等
+void LTForceNativeGlassSweep(void);             // 立即扫描现有底栏视图并尝试原生路径
+
 #pragma mark - Glass view
 
 @interface LTCustomGlassView : UIView

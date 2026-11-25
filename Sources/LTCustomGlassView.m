@@ -20,6 +20,8 @@
 @property (nonatomic, strong) CAShapeLayer *rimLayer;
 @property (nonatomic, strong) CAShapeLayer *topHairline;
 @property (nonatomic, assign) UIUserInterfaceStyle lastStyle;
+- (UIVisualEffect *)preferredEffectForStyle:(NSInteger)style dark:(BOOL)dark;
+- (UIBlurEffect *)blurEffectForStyle:(NSInteger)style dark:(BOOL)dark;
 @end
 
 @implementation LTCustomGlassView
@@ -37,7 +39,7 @@
         self.layer.shadowRadius = 16.0;
         self.layer.shadowOffset = CGSizeMake(0, 4);
 
-        UIBlurEffect *blur = [self blurEffectForStyle:[LTPrefs blurStyle]
+        UIVisualEffect *blur = [self preferredEffectForStyle:[LTPrefs blurStyle]
                                                  dark:(self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark)];
         _blurView = [[UIVisualEffectView alloc] initWithEffect:blur];
         _blurView.frame = self.bounds;
@@ -96,6 +98,32 @@
                     dark ? UIBlurEffectStyleSystemUltraThinMaterialDark
                          : UIBlurEffectStyleSystemThinMaterialLight];
     }
+}
+
+// iOS 15/16 上最接近 iOS 26 UIGlassEffect 的材质：私有 _UICustomBlurEffect。
+// 巨魔（TrollStore）环境下私有 API 可用；失败时回落到公开 UIBlurEffect。
+// 相比系统 material，它能独立控制 blurRadius / saturation / tint / zoom，
+// 其中 zoom>1 让背景轻微放大，模拟玻璃透镜的折射错觉。
+- (UIVisualEffect *)preferredEffectForStyle:(NSInteger)style dark:(BOOL)dark {
+    Class custom = NSClassFromString(@"_UICustomBlurEffect");
+    if (custom) {
+        id effect = [[custom alloc] init];
+        @try {
+            // 档位映射：越"厚"的档位半径越大，模拟不同玻璃厚度。
+            CGFloat radius = (style == 3) ? 32.0 : (style == 2) ? 26.0 : (style == 4) ? 28.0 : 22.0;
+            [effect setValue:@(radius) forKey:@"blurRadius"];
+            [effect setValue:@(dark ? 1.35 : 1.20) forKey:@"saturationFactor"];
+            [effect setValue:(dark ? [UIColor blackColor] : [UIColor whiteColor]) forKey:@"colorTint"];
+            [effect setValue:@(dark ? 0.10 : 0.06) forKey:@"colorTintAlpha"];
+            [effect setValue:@1.06 forKey:@"zoom"];
+            // style 4 是纯深色磨砂，关闭透亮感
+            if (style == 4) [effect setValue:@0.0 forKey:@"saturationFactor"];
+            return (UIVisualEffect *)effect;
+        } @catch (NSException *e) {
+            LTLog(@"_UICustomBlurEffect 配置失败，回落 UIBlurEffect: %@", e.reason);
+        }
+    }
+    return [self blurEffectForStyle:style dark:dark];
 }
 
 // 把偏好里的强制外观套到传入的 style 上。
@@ -157,7 +185,7 @@
     _blurView.hidden = NO;
     BOOL dark = (style == UIUserInterfaceStyleDark);
     // 让材质跟随明暗：深色内容用 dark material，避免变成一块浅灰板。
-    _blurView.effect = [self blurEffectForStyle:[LTPrefs blurStyle] dark:dark];
+    _blurView.effect = [self preferredEffectForStyle:[LTPrefs blurStyle] dark:dark];
 
     // 乳白磨砂（参考图）：白霜感明显、但仍是半透明，能透出模糊的背景。
     // 深色磨砂：只做很轻的压暗，保证白色图标可读，不要糊成黑板。
