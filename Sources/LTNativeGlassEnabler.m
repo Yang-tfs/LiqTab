@@ -16,6 +16,7 @@
 
 #import "LiqTabInternal.h"
 #import <objc/runtime.h>
+#import <objc/message.h>
 
 static BOOL sInjecting = NO;
 static BOOL sInstalled = NO;

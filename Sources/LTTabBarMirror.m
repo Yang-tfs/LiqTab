@@ -8,6 +8,7 @@
 
 #import "LiqTabInternal.h"
 #import <objc/runtime.h>
+#import <objc/message.h>
 
 char kLTMirrorKey;
 
@@ -294,7 +295,7 @@ static UIViewController *LTControllerForView(UIView *v) {
         [self.items removeAllObjects];
 
         CGFloat count = MAX(visible.count, 1);
-        CGFloat capsuleW = CGRectGetWidth(self.capsule.bounds) - ([LTPrefs barHeight()] + 8.0);
+        CGFloat capsuleW = CGRectGetWidth(self.capsule.bounds) - ([LTPrefs barHeight] + 8.0);
         CGFloat itemW = capsuleW / count;
         for (NSInteger i = 0; i < (NSInteger)visible.count; i++) {
             id b = visible[i];
