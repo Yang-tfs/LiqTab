@@ -1,62 +1,46 @@
 //
 //  Tweak.m
-//  LiqTab — constructor entry point.
+//  LiqTab — 入口。纯 Objective-C Runtime，无 Substrate / Logos 依赖。
 //
-//  纯 Objective-C Runtime，无 Substrate / Logos 依赖。
+//  设计（v2）：统一使用「轮询叠加」模式，不 hook 抖音任何方法。
+//    • 不 hook AWENormalModeTabBar -layoutSubviews
+//      → 不会和 DYYY 的 Logos hook 互相递归，也不会布局抖动死循环。
+//    • 不隐藏、不重排原生按钮
+//      → 原生图标/文字/角标全部保留，玻璃只做它们的背景层。
+//    • 低频轮询（~10Hz）跟踪底栏位置，兼容 DYYY 修改底栏高度/隐藏等操作。
 //
-//  与 DYYY 共存策略：
-//   • 检测到 DYYY 时，完全不 hook AWENormalModeTabBar（DYYY 用 Logos hook 了
-//     同一个 layoutSubviews，双方都改视图会造成布局死循环）。改用 CADisplayLink
-//     低频轮询，只把玻璃视图叠加到 window 上，绝不改原生底栏。
-//   • 检测到 DYYY 时也不 hook AWEABTestManager（DYYY 的「禁止下发配置」模式
-//     会直接 return 截断调用链）。
+//  可选：未检测到 DYYY 时，仍可强制开启抖音自带的 fake liquid glass 开关
+//  （默认关闭，避免和 DYYY 的 ABTest 管理冲突）。
 //
 
 #import "LiqTabInternal.h"
 #import <objc/runtime.h>
 #import <objc/message.h>
 
-// DYYY 检测（在 LTTabBarMirror.m 中实现）
 BOOL LTDYYYDetected(void);
-
-// 内部 C 函数
 void LTInstallNativeGlassHooks(void);
 void LTForceNativeFlagsNow(void);
 void LTProbeNativeGlassViews(void);
 
-// 前向声明
 static UIView *LTFindTabBarView(void);
 static UIView *LTFindViewRecursively(UIView *v, Class cls, int depth);
 
-#pragma mark - 轮询模式（DYYY 共存）
+#pragma mark - 轮询
 
 static CADisplayLink *sPollLink = nil;
-static LTTabBarMirror *sOverlayMirror = nil;
-static NSInteger sPollTick = 0;
+static LTTabBarMirror *sMirror = nil;
+static NSInteger sTick = 0;
+static BOOL sActivated = NO;
 
-@interface LTPollDriver : NSObject
-- (void)tick:(CADisplayLink *)link;
-@end
-
-@implementation LTPollDriver
-- (void)tick:(CADisplayLink *)link {
-    if (![LTPrefs enabled]) return;
-    if ([LTPrefs mode] == LTOperatingModeNative) return;
-    // 每 6 帧检查一次（约 10Hz），避免频繁遍历视图树。
-    if (++sPollTick % 6 != 0) return;
-
-    UIView *bar = LTFindTabBarView();
-    if (!bar) {
-        if (sOverlayMirror) { [sOverlayMirror detach]; sOverlayMirror = nil; }
-        return;
+static UIView *LTFindViewRecursively(UIView *v, Class cls, int depth) {
+    if (!v || !cls || depth > 12) return nil;
+    if ([v isKindOfClass:cls]) return v;
+    for (UIView *s in v.subviews) {
+        UIView *f = LTFindViewRecursively(s, cls, depth + 1);
+        if (f) return f;
     }
-    if (!sOverlayMirror) {
-        sOverlayMirror = [[LTTabBarMirror alloc] initWithTabBar:bar];
-        LTLog(@"DYYY 共存模式：已创建叠加玻璃视图");
-    }
-    [sOverlayMirror synchronize];
+    return nil;
 }
-@end
 
 static UIView *LTFindTabBarView(void) {
     static Class barClass = Nil;
@@ -72,21 +56,44 @@ static UIView *LTFindTabBarView(void) {
         windows = kw ? @[kw] : @[];
     }
     for (UIWindow *w in windows) {
+        if (w.hidden || w.alpha < 0.01) continue;
         UIView *found = LTFindViewRecursively(w, barClass, 0);
-        if (found && !CGRectIsEmpty(found.bounds)) return found;
+        if (found && !CGRectIsEmpty(found.bounds) && !found.hidden && found.alpha > 0.01) {
+            return found;
+        }
     }
     return nil;
 }
 
-static UIView *LTFindViewRecursively(UIView *v, Class cls, int depth) {
-    if (!v || !cls || depth > 12) return nil;
-    if ([v isKindOfClass:cls]) return v;
-    for (UIView *s in v.subviews) {
-        UIView *f = LTFindViewRecursively(s, cls, depth + 1);
-        if (f) return f;
+@interface LTPollDriver : NSObject
+- (void)tick:(CADisplayLink *)link;
+@end
+
+@implementation LTPollDriver
+- (void)tick:(CADisplayLink *)link {
+    if (![LTPrefs enabled]) {
+        if (sMirror) { [sMirror detach]; sMirror = nil; }
+        return;
     }
-    return nil;
+    if ([LTPrefs mode] == LTOperatingModeNative) return;
+    if (++sTick % 6 != 0) return;   // ≈10Hz，避免频繁遍历视图树
+
+    UIView *bar = LTFindTabBarView();
+
+    // 底栏消失（全屏/隐藏）时把玻璃也收起来；底栏换了实例则重建。
+    if (sMirror && ![sMirror isAttachedToBar:bar]) {
+        [sMirror detach];
+        sMirror = nil;
+    }
+    if (!bar) return;
+
+    if (!sMirror) {
+        sMirror = [[LTTabBarMirror alloc] initWithTabBar:bar];
+        LTLog(@"已挂载玻璃背景到 %@", NSStringFromClass([bar class]));
+    }
+    [sMirror synchronize];
 }
+@end
 
 static LTPollDriver *sPollDriver = nil;
 
@@ -96,68 +103,41 @@ static void LTStartPolling(void) {
     sPollLink = [CADisplayLink displayLinkWithTarget:sPollDriver selector:@selector(tick:)];
     sPollLink.preferredFramesPerSecond = 60;
     [sPollLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
-    LTLog(@"DYYY 共存模式：启动轮询");
+    LTLog(@"轮询已启动");
 }
 
-#pragma mark - Swizzling 模式（无 DYYY）
+#pragma mark - 启动
 
-static IMP sOriginalTabBarLayout = NULL;
+static void LTActivate(void) {
+    if (sActivated) return;
+    sActivated = YES;
 
-static void LTTabBarLayoutHook(id self, SEL _cmd) {
-    if (sOriginalTabBarLayout) ((void (*)(id, SEL))sOriginalTabBarLayout)(self, _cmd);
+    BOOL dyyy = LTDYYYDetected();
+    LTLog(@"激活：DYYY %@", dyyy ? @"已检测到" : @"未检测到");
 
-    UIView *bar = (UIView *)self;
-    LTTabBarMirror *mirror = objc_getAssociatedObject(bar, &kLTMirrorKey);
-    if (!mirror) {
-        if (![LTPrefs enabled]) return;
-        if ([LTPrefs mode] == LTOperatingModeNative) return;
-        id buttons = nil;
-        @try { buttons = [bar valueForKey:@"tabBarButtons"]; }
-        @catch (NSException *e) { return; }
-        if (![buttons isKindOfClass:[NSArray class]] || [(NSArray *)buttons count] == 0) return;
-        mirror = [[LTTabBarMirror alloc] initWithTabBar:bar];
+    // 仅在明确没有 DYYY 时才考虑动 ABTest（有 DYYY 时它的拦截会破坏链路）。
+    if (!dyyy && [LTPrefs forceNativeFlags] && [LTPrefs mode] == LTOperatingModeNative) {
+        LTInstallNativeGlassHooks();
+        LTForceNativeFlagsNow();
+        LTProbeNativeGlassViews();
     }
-    // synchronize 内部有 applying 防重入，避免布局抖动。
-    [mirror synchronize];
+
+    LTStartPolling();
 }
-
-static void LTInstallSwizzleHooks(void) {
-    Class barClass = NSClassFromString(@"AWENormalModeTabBar");
-    if (!barClass) {
-        LTLog(@"AWENormalModeTabBar 类未找到，tweak 未激活");
-        return;
-    }
-    SEL layout = @selector(layoutSubviews);
-    Method m = class_getInstanceMethod(barClass, layout);
-    if (!m) return;
-    sOriginalTabBarLayout = method_getImplementation(m);
-    IMP replacement = (IMP)LTTabBarLayoutHook;
-    if (!class_replaceMethod(barClass, layout, replacement, method_getTypeEncoding(m))) {
-        class_addMethod(barClass, layout, replacement, method_getTypeEncoding(m));
-    }
-    LTLog(@"已 hook AWENormalModeTabBar -layoutSubviews（独立模式）");
-}
-
-#pragma mark - 入口
 
 __attribute__((constructor)) static void LTInitialize(void) {
     @autoreleasepool {
-        BOOL dyyy = LTDYYYDetected();
-        LTLog(@"加载完成（DYYY %@）", dyyy ? @"已检测到，进入共存模式" : @"未检测到，独立模式");
-
-        if (dyyy) {
-            // 共存模式：不 hook 任何抖音类，不碰 ABTest，纯叠加视图。
-            LTStartPolling();
-        } else {
-            // 独立模式：安装 hook + 强制原生液态玻璃开关。
-            if ([LTPrefs forceNativeFlags]) {
-                LTInstallNativeGlassHooks();
-                LTForceNativeFlagsNow();
-            }
-            LTProbeNativeGlassViews();
-            if ([LTPrefs mode] != LTOperatingModeNative) {
-                LTInstallSwizzleHooks();
-            }
-        }
+        LTLog(@"加载（等待 App 启动完成后激活）");
+        // 延迟到 App 启动后：此时所有注入的 dylib（含 DYYY）都已注册类。
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)),
+                       dispatch_get_main_queue(), ^{
+            LTActivate();
+        });
+        [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidBecomeActiveNotification
+                                                          object:nil
+                                                           queue:[NSOperationQueue mainQueue]
+                                                      usingBlock:^(NSNotification *n) {
+            LTActivate();
+        }];
     }
 }

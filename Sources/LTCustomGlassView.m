@@ -38,7 +38,8 @@
         self.layer.shadowRadius = 14.0;
         self.layer.shadowOffset = CGSizeMake(0, 6);
 
-        UIBlurEffect *blur = [self blurEffectForStyle:[LTPrefs blurStyle]];
+        UIBlurEffect *blur = [self blurEffectForStyle:[LTPrefs blurStyle]
+                                                 dark:(self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark)];
         _blurView = [[UIVisualEffectView alloc] initWithEffect:blur];
         _blurView.frame = self.bounds;
         _blurView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
@@ -83,13 +84,17 @@
     return self;
 }
 
-- (UIBlurEffect *)blurEffectForStyle:(NSInteger)style {
+- (UIBlurEffect *)blurEffectForStyle:(NSInteger)style dark:(BOOL)dark {
     switch (style) {
-        case 1: return [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterial];
-        case 2: return [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemMaterial];
-        case 3: return [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThickMaterial];
+        case 1: return [UIBlurEffect effectWithStyle:
+                    dark ? UIBlurEffectStyleSystemThinMaterialDark : UIBlurEffectStyleSystemThinMaterialLight];
+        case 2: return [UIBlurEffect effectWithStyle:
+                    dark ? UIBlurEffectStyleSystemMaterialDark : UIBlurEffectStyleSystemMaterialLight];
+        case 3: return [UIBlurEffect effectWithStyle:
+                    dark ? UIBlurEffectStyleSystemThickMaterialDark : UIBlurEffectStyleSystemThickMaterialLight];
         case 4: return [UIBlurEffect effectWithStyle:UIBlurEffectStyleDark];
-        default: return [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterial];
+        default: return [UIBlurEffect effectWithStyle:
+                    dark ? UIBlurEffectStyleSystemUltraThinMaterialDark : UIBlurEffectStyleSystemUltraThinMaterialLight];
     }
 }
 
@@ -144,6 +149,8 @@
 
     _blurView.hidden = NO;
     BOOL dark = (style == UIUserInterfaceStyleDark);
+    // 让材质跟随明暗：深色内容用 dark material，避免变成一块浅灰板。
+    _blurView.effect = [self blurEffectForStyle:[LTPrefs blurStyle] dark:dark];
     _tintView.backgroundColor = dark
         ? [[UIColor blackColor] colorWithAlphaComponent:0.10]
         : [[UIColor whiteColor] colorWithAlphaComponent:0.07];

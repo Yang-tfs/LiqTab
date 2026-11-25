@@ -65,6 +65,8 @@ typedef NS_ENUM(NSInteger, LTOperatingMode) {
 - (void)synchronize;
 - (void)detach;
 @property (nonatomic, readonly) BOOL applied;
+@property (nonatomic, readonly) BOOL attached;
+- (BOOL)isAttachedToBar:(UIView *)bar;
 @end
 
 #pragma mark - Utilities
