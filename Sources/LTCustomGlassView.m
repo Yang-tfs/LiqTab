@@ -33,11 +33,11 @@
         _glassRadius = 26.0;
         _lastStyle = UIUserInterfaceStyleUnspecified;
 
-        // 轻投影：参考图是极淡的浮起感，不要厚重黑影。
+        // 极淡投影：叠在原生底栏下当背景，投影要几乎看不见。
         self.layer.shadowColor = [UIColor blackColor].CGColor;
-        self.layer.shadowOpacity = 0.12;
-        self.layer.shadowRadius = 16.0;
-        self.layer.shadowOffset = CGSizeMake(0, 4);
+        self.layer.shadowOpacity = 0.05;
+        self.layer.shadowRadius = 10.0;
+        self.layer.shadowOffset = CGSizeMake(0, 2);
 
         UIVisualEffect *blur = [self preferredEffectForStyle:[LTPrefs blurStyle]
                                                  dark:(self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark)];
@@ -86,8 +86,7 @@
 }
 
 - (UIBlurEffect *)blurEffectForStyle:(NSInteger)style dark:(BOOL)dark {
-    // 统一用 SystemThinMaterial：模糊足、又足够透，接近参考图的高斯磨砂。
-    // 0/1 走 thin（最接近参考），2 走 regular，3 更厚，4 纯 dark。
+    // 默认走 UltraThin：最透亮，不像一块白塑料。
     switch (style) {
         case 3: return [UIBlurEffect effectWithStyle:
                     dark ? UIBlurEffectStyleSystemThickMaterialDark : UIBlurEffectStyleSystemThickMaterialLight];
@@ -96,7 +95,7 @@
                     dark ? UIBlurEffectStyleSystemMaterialDark : UIBlurEffectStyleSystemMaterialLight];
         default: return [UIBlurEffect effectWithStyle:
                     dark ? UIBlurEffectStyleSystemUltraThinMaterialDark
-                         : UIBlurEffectStyleSystemThinMaterialLight];
+                         : UIBlurEffectStyleSystemUltraThinMaterialLight];
     }
 }
 
@@ -105,9 +104,9 @@
 // 相比系统 material，它能独立控制 blurRadius / saturation / tint / zoom，
 // 其中 zoom>1 让背景轻微放大，模拟玻璃透镜的折射错觉。
 - (UIVisualEffect *)preferredEffectForStyle:(NSInteger)style dark:(BOOL)dark {
-    // 档位映射：越"厚"的档位半径越大，模拟不同玻璃厚度。
-    CGFloat radius = (style == 3) ? 32.0 : (style == 2) ? 26.0 : (style == 4) ? 28.0 : 22.0;
-    CGFloat saturation = (style == 4) ? 0.0 : (dark ? 1.35 : 1.20);
+    // 清透档：半径减小，避免糊成一片白雾。
+    CGFloat radius = (style == 3) ? 24.0 : (style == 2) ? 18.0 : (style == 4) ? 20.0 : 12.0;
+    CGFloat saturation = (style == 4) ? 0.0 : (dark ? 1.2 : 1.1);
 
     // 首选：抖音 41.2.0 自己的做法（IPA 二进制实证）。
     // 在 AwemeCore 的 tabbar 相关代码区（AWETabBarControllerPadProtocol 附近）
@@ -203,30 +202,29 @@
     // 让材质跟随明暗：深色内容用 dark material，避免变成一块浅灰板。
     _blurView.effect = [self preferredEffectForStyle:[LTPrefs blurStyle] dark:dark];
 
-    // 乳白磨砂（参考图）：白霜感明显、但仍是半透明，能透出模糊的背景。
-    // 深色磨砂：只做很轻的压暗，保证白色图标可读，不要糊成黑板。
+    // 清透玻璃：只留很淡的染色，不再糊一层白霜。
     _tintView.backgroundColor = dark
-        ? [[UIColor whiteColor] colorWithAlphaComponent:0.06]
-        : [[UIColor whiteColor] colorWithAlphaComponent:0.34];
+        ? [[UIColor whiteColor] colorWithAlphaComponent:0.04]
+        : [[UIColor colorWithWhite:0.5 alpha:1.0] colorWithAlphaComponent:0.08];
 
-    // 顶部高光：参考图是明显的柔光过渡。
-    CGFloat sheen = dark ? 0.18 : 0.55;
+    // 顶部高光：很克制的一点柔光，避免"白色塑料条"。
+    CGFloat sheen = dark ? 0.10 : 0.22;
     _specularLayer.colors = @[
         (id)[[UIColor whiteColor] colorWithAlphaComponent:sheen].CGColor,
-        (id)[[UIColor whiteColor] colorWithAlphaComponent:sheen * 0.28].CGColor,
+        (id)[[UIColor whiteColor] colorWithAlphaComponent:sheen * 0.20].CGColor,
         (id)[UIColor clearColor].CGColor
     ];
     _rimLayer.strokeColor = (dark
-        ? [[UIColor whiteColor] colorWithAlphaComponent:0.24]
-        : [[UIColor whiteColor] colorWithAlphaComponent:0.62]).CGColor;
-    _topHairline.strokeColor = (dark
-        ? [[UIColor whiteColor] colorWithAlphaComponent:0.28]
-        : [[UIColor whiteColor] colorWithAlphaComponent:0.80]).CGColor;
-
-    // 选中胶囊：参考图里是比玻璃更亮的一层。
-    _selectionPill.backgroundColor = (dark
         ? [[UIColor whiteColor] colorWithAlphaComponent:0.14]
-        : [[UIColor whiteColor] colorWithAlphaComponent:0.55]);
+        : [[UIColor whiteColor] colorWithAlphaComponent:0.28]).CGColor;
+    _topHairline.strokeColor = (dark
+        ? [[UIColor whiteColor] colorWithAlphaComponent:0.18]
+        : [[UIColor whiteColor] colorWithAlphaComponent:0.34]).CGColor;
+
+    // 选中胶囊：克制的高亮，不再是一块刺眼的白色。
+    _selectionPill.backgroundColor = (dark
+        ? [[UIColor whiteColor] colorWithAlphaComponent:0.10]
+        : [[UIColor whiteColor] colorWithAlphaComponent:0.22]);
 }
 
 - (void)setSelectionFrame:(CGRect)frame animated:(BOOL)animated {

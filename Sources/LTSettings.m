@@ -321,16 +321,16 @@ static NSArray *LTBuildDetailSections(void) {
     // 尺寸（写入实际 pt 数值）
     NSMutableArray *sizeItems = [NSMutableArray array];
     CGFloat curSide = [LTPrefs sideInset];
-    NSInteger sideIdx = 1;
-    if (curSide <= 8) sideIdx = 0; else if (curSide >= 26) sideIdx = 3; else if (curSide >= 20) sideIdx = 2;
-    id side = LTMakeValueChoice(@"sideInset", @"左右边距", @[@"8 pt", @"14 pt", @"20 pt", @"26 pt"],
-                                @[@8, @14, @20, @26], sideIdx, nil);
+    NSInteger sideIdx = 0;
+    if (curSide >= 20) sideIdx = 3; else if (curSide >= 14) sideIdx = 2; else if (curSide >= 8) sideIdx = 1;
+    id side = LTMakeValueChoice(@"sideInset", @"左右边距", @[@"4 pt", @"8 pt", @"14 pt", @"20 pt"],
+                                @[@4, @8, @14, @20], sideIdx, nil);
     if (side) [sizeItems addObject:side];
 
     CGFloat curH = [LTPrefs barHeight];
     NSInteger hIdx = 1;
     if (curH <= 50) hIdx = 0; else if (curH >= 66) hIdx = 2;
-    id height = LTMakeValueChoice(@"barHeight", @"胶囊高度", @[@"50 pt", @"58 pt", @"66 pt"],
+    id height = LTMakeValueChoice(@"barHeight", @"胶囊高度", @[@"50 pt", @"54 pt", @"66 pt"],
                                   @[@50, @58, @66], hIdx, nil);
     if (height) [sizeItems addObject:height];
     id sec2 = LTMakeSection(@"尺寸", nil, sizeItems);

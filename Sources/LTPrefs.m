@@ -49,7 +49,8 @@ static NSString * const kSelectionKey    = @"LiqTab.showSelectionPill";
 
 + (CGFloat)sideInset {
     id v = [[self defaults] objectForKey:kSideInsetKey];
-    return v ? [v floatValue] : 14.0;
+    // 默认改成 4pt（原来 14pt），玻璃更贴合底栏，不会变成一条突兀的窄胶囊。
+    return v ? [v floatValue] : 4.0;
 }
 
 + (CGFloat)bottomInset {

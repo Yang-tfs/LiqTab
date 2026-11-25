@@ -160,9 +160,9 @@ BOOL LTDYYYDetected(void) {
     if (self = [super init]) {
         _hostBar = tabBar;
         _items = [NSMutableArray array];
-        // 独立模式优先（自建胶囊必定可见）；若拿不到按钮数组则退回叠加模式。
-    NSArray *buttons = LTGet(tabBar, @"tabBarButtons");
-    _overlayMode = ![buttons isKindOfClass:[NSArray class]] || buttons.count == 0;
+        // 始终叠加模式：原生图标/文字/点击一个都不动，玻璃只垫在底栏背景。
+        // 独立自建胶囊会重画图标和文字，观感差且容易错位——彻底弃用。
+        _overlayMode = YES;
         // 必须先设置关联对象，否则 addSubview 触发的 layout 会重复创建。
         objc_setAssociatedObject(tabBar, &kLTMirrorKey, self, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         [self build];
@@ -312,16 +312,17 @@ BOOL LTDYYYDetected(void) {
     CGRect b = bar.bounds;
     CGFloat safeBottom = bar.safeAreaInsets.bottom;
     CGFloat rowH = MAX(CGRectGetHeight(b) - safeBottom, 44.0);   // 按钮所在高度（通常 49）
-    CGFloat h = MIN([LTPrefs barHeight], rowH + 8.0);            // 胶囊高度
     CGFloat side = [LTPrefs sideInset];
 
-    // 胶囊与按钮行同中心：上下一共只多出 (h - rowH)。
-    CGFloat y = (rowH - h) / 2.0;
-    CGRect f = CGRectMake(side, y, MAX(CGRectGetWidth(b) - side * 2.0, 1.0), h);
+    // 关键修复：原来把胶囊上移 (rowH-h)/2 导致玻璃和原生按钮错位、露出白边。
+    // 现在玻璃严格贴合原生按钮行（同 y、同高），只在左右按 sideInset 内缩。
+    CGFloat y = 0;
+    CGFloat fH = rowH;
+    CGRect f = CGRectMake(side, y, MAX(CGRectGetWidth(b) - side * 2.0, 1.0), fH);
 
     if (!CGRectEqualToRect(_container.frame, f)) _container.frame = f;
 
-    _glass.glassRadius = h / 2.0;
+    _glass.glassRadius = fH / 2.0;
     [_glass applyStyleForUserInterfaceStyle:
         LTBarUsesLightInk(bar, buttons) ? UIUserInterfaceStyleDark : UIUserInterfaceStyleLight];
     _glass.hidden = NO;
