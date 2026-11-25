@@ -105,25 +105,41 @@
 // 相比系统 material，它能独立控制 blurRadius / saturation / tint / zoom，
 // 其中 zoom>1 让背景轻微放大，模拟玻璃透镜的折射错觉。
 - (UIVisualEffect *)preferredEffectForStyle:(NSInteger)style dark:(BOOL)dark {
+    // 档位映射：越"厚"的档位半径越大，模拟不同玻璃厚度。
+    CGFloat radius = (style == 3) ? 32.0 : (style == 2) ? 26.0 : (style == 4) ? 28.0 : 22.0;
+    CGFloat saturation = (style == 4) ? 0.0 : (dark ? 1.35 : 1.20);
+
+    // 首选：抖音 41.2.0 自己的做法（IPA 二进制实证）。
+    // 在 AwemeCore 的 tabbar 相关代码区（AWETabBarControllerPadProtocol 附近）
+    // 发现字符串 `_blurRadius` / `_saturationDeltaFactor` 以及 block 签名
+    // `@16@?0@"UIBlurEffect"8` —— 说明抖音就是拿标准 UIBlurEffect 再 KVC
+    // 改这两个私有 ivar 来做它的 "fake liquid glass"。这是最有把握的一条路。
+    UIBlurEffect *base = [self blurEffectForStyle:style dark:dark];
+    @try {
+        [base setValue:@(radius) forKey:@"_blurRadius"];
+        [base setValue:@(saturation) forKey:@"_saturationDeltaFactor"];
+        LTLog(@"UIBlurEffect KVC 私有 ivar 成功: radius=%.1f saturation=%.2f", radius, saturation);
+        return base;
+    } @catch (NSException *e) {
+        LTLog(@"UIBlurEffect 私有 ivar KVC 失败: %@", e.reason);
+    }
+
+    // 次选：_UICustomBlurEffect，能额外控制 colorTint / zoom（背景放大→折射错觉）。
     Class custom = NSClassFromString(@"_UICustomBlurEffect");
     if (custom) {
         id effect = [[custom alloc] init];
         @try {
-            // 档位映射：越"厚"的档位半径越大，模拟不同玻璃厚度。
-            CGFloat radius = (style == 3) ? 32.0 : (style == 2) ? 26.0 : (style == 4) ? 28.0 : 22.0;
             [effect setValue:@(radius) forKey:@"blurRadius"];
-            [effect setValue:@(dark ? 1.35 : 1.20) forKey:@"saturationFactor"];
+            [effect setValue:@(saturation) forKey:@"saturationFactor"];
             [effect setValue:(dark ? [UIColor blackColor] : [UIColor whiteColor]) forKey:@"colorTint"];
             [effect setValue:@(dark ? 0.10 : 0.06) forKey:@"colorTintAlpha"];
             [effect setValue:@1.06 forKey:@"zoom"];
-            // style 4 是纯深色磨砂，关闭透亮感
-            if (style == 4) [effect setValue:@0.0 forKey:@"saturationFactor"];
             return (UIVisualEffect *)effect;
         } @catch (NSException *e) {
-            LTLog(@"_UICustomBlurEffect 配置失败，回落 UIBlurEffect: %@", e.reason);
+            LTLog(@"_UICustomBlurEffect 配置失败，回落公开 UIBlurEffect: %@", e.reason);
         }
     }
-    return [self blurEffectForStyle:style dark:dark];
+    return base;
 }
 
 // 把偏好里的强制外观套到传入的 style 上。
