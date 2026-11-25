@@ -21,6 +21,7 @@ BOOL LTDYYYDetected(void);
 void LTInstallNativeGlassHooks(void);
 void LTForceNativeFlagsNow(void);
 void LTProbeNativeGlassViews(void);
+void LTInstallSettingsHooks(void);
 
 static UIView *LTFindTabBarView(void);
 static UIView *LTFindViewRecursively(UIView *v, Class cls, int depth);
@@ -121,6 +122,9 @@ static void LTActivate(void) {
         LTForceNativeFlagsNow();
         LTProbeNativeGlassViews();
     }
+
+    // 安装设置入口 hook（与 DYYY 共用 hook 点，但只改返回数组，不会递归）。
+    LTInstallSettingsHooks();
 
     LTStartPolling();
 }

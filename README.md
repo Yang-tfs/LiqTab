@@ -13,6 +13,7 @@
 
 ## 特性
 
+- **抖音设置页内直接调整**：进入 抖音「设置」→ 最上方「LiqTab 液态底栏」→ 即可切换材质、模糊强度、尺寸，无需 Filza / 无需重启抖音（与 DYYY 的设置入口共存）
 - 悬浮胶囊底栏，圆角连续曲率（continuous corner），磨砂/清透质感可调
 - 独立圆形相机（+）键，与 DYKiller 的布局思路一致
 - 自动镜像抖音原生底栏的：标题、图标、红点/角标、选中态、图标着色（取抖音自身选中标签文字颜色）
@@ -37,6 +38,7 @@ LiqTab/
 │   ├── LTTabItemView.m      # 单个底栏按钮（图标 / 文字 / 角标）
 │   ├── LTTabBarMirror.m     # 镜像抖音底栏到悬浮胶囊的核心逻辑
 │   ├── LTNativeGlassEnabler.m # 强制开启抖音自带液态玻璃 ABTest flag
+│   ├── LTSettings.m         # 在抖音设置页注入 LiqTab 设置入口与开关面板
 │   └── Tweak.m              # constructor 入口，安装 swizzling
 └── README.md                # 本文件
 ```
@@ -98,7 +100,24 @@ make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
 
 ---
 
-## 配置
+## 在抖音设置里调整（推荐）
+
+像 DYKiller 一样，LiqTab 会在抖音设置页注入入口：
+
+1. 打开抖音 → **我** → **右上角三横线** → **设置**
+2. 页面最上方会出现 **「LiqTab 液态底栏」** 分区（DYYY 入口旁边）
+3. 点进去可以调：
+   - **启用液态底栏**（总开关）
+   - **玻璃外观**：自动 / 乳白磨砂 / 深色磨砂
+   - **模糊强度**：清透 / 薄磨砂 / 标准磨砂 / 厚磨砂 / 纯深色
+   - **显示选中胶囊**
+   - **点击震动反馈**
+   - **左右边距 / 胶囊高度**
+4. 改动**即时生效**，不用重启抖音
+
+> 与 DYYY 共存：DYYY 的设置入口也在同一页面，两个入口会同时显示，互不覆盖。
+
+## 高级配置（可选）
 
 所有配置都写在 NSUserDefaults suite `com.yang.liqtab`（用 `defaults write` 或任意偏好设置 App 修改），修改后重启抖音生效：
 

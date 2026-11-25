@@ -91,6 +91,9 @@ static NSString * const kSelectionKey    = @"LiqTab.showSelectionPill";
     return v ? [v boolValue] : NO;
 }
 
+// 设置变更通知：设置面板写入偏好后发出，玻璃视图即时刷新。
+NSString * const LTSettingsDidChangeNotification = @"LiqTabSettingsDidChangeNotification";
+
 + (BOOL)forceNativeFlags {
     id v = [[self defaults] objectForKey:kForceNativeKey];
     return v ? [v boolValue] : YES;
@@ -103,9 +106,29 @@ static NSString * const kSelectionKey    = @"LiqTab.showSelectionPill";
     return n;
 }
 
++ (void)setGlassAppearance:(NSInteger)value {
+    [[self defaults] setInteger:value forKey:kAppearanceKey];
+    [[NSNotificationCenter defaultCenter] postNotificationName:LTSettingsDidChangeNotification object:nil];
+}
+
 + (BOOL)showSelectionPill {
     id v = [[self defaults] objectForKey:kSelectionKey];
     return v ? [v boolValue] : YES;
+}
+
+// 通用写入接口（供设置面板使用），key 为不带前缀的设置键名。
++ (void)setValue:(id)value forSettingKey:(NSString *)key {
+    NSString *fullKey = key;
+    if (![fullKey hasPrefix:@"LiqTab."]) fullKey = [@"LiqTab." stringByAppendingString:key];
+    if (value) [[self defaults] setObject:value forKey:fullKey];
+    else [[self defaults] removeObjectForKey:fullKey];
+    [[NSNotificationCenter defaultCenter] postNotificationName:LTSettingsDidChangeNotification object:nil];
+}
+
++ (id)valueForSettingKey:(NSString *)key {
+    NSString *fullKey = key;
+    if (![fullKey hasPrefix:@"LiqTab."]) fullKey = [@"LiqTab." stringByAppendingString:key];
+    return [[self defaults] objectForKey:fullKey];
 }
 
 @end

@@ -30,8 +30,14 @@ typedef NS_ENUM(NSInteger, LTOperatingMode) {
 + (BOOL)debugLog;
 + (BOOL)forceNativeFlags; // whether to inject ABTest keys at all
 + (NSInteger)glassAppearance; // 0 auto, 1 light (乳白磨砂), 2 dark (深色磨砂)
++ (void)setGlassAppearance:(NSInteger)value;
 + (BOOL)showSelectionPill;
++ (void)setValue:(nullable id)value forSettingKey:(NSString *)key;
++ (nullable id)valueForSettingKey:(NSString *)key;
 @end
+
+extern NSString * const LTSettingsDidChangeNotification;
+void LTInstallSettingsHooks(void);   // 在设置面板注入 LiqTab 入口（LTSettings.m）
 
 #pragma mark - Glass view
 

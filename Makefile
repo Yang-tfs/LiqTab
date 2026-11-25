@@ -24,7 +24,8 @@ LiqTab_FILES = Sources/Tweak.m \
                Sources/LTCustomGlassView.m \
                Sources/LTTabItemView.m \
                Sources/LTTabBarMirror.m \
-               Sources/LTNativeGlassEnabler.m
+               Sources/LTNativeGlassEnabler.m \
+               Sources/LTSettings.m
 
 LiqTab_CFLAGS = -fobjc-arc -w -I$(CURDIR)/Sources
 LiqTab_FRAMEWORKS = UIKit Foundation QuartzCore CoreGraphics
