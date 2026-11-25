@@ -31,12 +31,11 @@
         _glassRadius = 26.0;
         _lastStyle = UIUserInterfaceStyleUnspecified;
 
-        // Shadow lives on self's layer; the capsule itself clips its children,
-        // but the shadow path is set to the capsule so it escapes correctly.
+        // 轻投影：参考图是极淡的浮起感，不要厚重黑影。
         self.layer.shadowColor = [UIColor blackColor].CGColor;
-        self.layer.shadowOpacity = 0.28;
-        self.layer.shadowRadius = 14.0;
-        self.layer.shadowOffset = CGSizeMake(0, 6);
+        self.layer.shadowOpacity = 0.12;
+        self.layer.shadowRadius = 16.0;
+        self.layer.shadowOffset = CGSizeMake(0, 4);
 
         UIBlurEffect *blur = [self blurEffectForStyle:[LTPrefs blurStyle]
                                                  dark:(self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark)];
@@ -85,17 +84,27 @@
 }
 
 - (UIBlurEffect *)blurEffectForStyle:(NSInteger)style dark:(BOOL)dark {
+    // 统一用 SystemThinMaterial：模糊足、又足够透，接近参考图的高斯磨砂。
+    // 0/1 走 thin（最接近参考），2 走 regular，3 更厚，4 纯 dark。
     switch (style) {
-        case 1: return [UIBlurEffect effectWithStyle:
-                    dark ? UIBlurEffectStyleSystemThinMaterialDark : UIBlurEffectStyleSystemThinMaterialLight];
-        case 2: return [UIBlurEffect effectWithStyle:
-                    dark ? UIBlurEffectStyleSystemMaterialDark : UIBlurEffectStyleSystemMaterialLight];
         case 3: return [UIBlurEffect effectWithStyle:
                     dark ? UIBlurEffectStyleSystemThickMaterialDark : UIBlurEffectStyleSystemThickMaterialLight];
         case 4: return [UIBlurEffect effectWithStyle:UIBlurEffectStyleDark];
+        case 2: return [UIBlurEffect effectWithStyle:
+                    dark ? UIBlurEffectStyleSystemMaterialDark : UIBlurEffectStyleSystemMaterialLight];
         default: return [UIBlurEffect effectWithStyle:
-                    dark ? UIBlurEffectStyleSystemUltraThinMaterialDark : UIBlurEffectStyleSystemUltraThinMaterialLight];
+                    dark ? UIBlurEffectStyleSystemUltraThinMaterialDark
+                         : UIBlurEffectStyleSystemThinMaterialLight];
     }
+}
+
+// 把偏好里的强制外观套到传入的 style 上。
+- (UIUserInterfaceStyle)resolveStyle:(UIUserInterfaceStyle)style {
+    NSInteger pref = [LTPrefs glassAppearance];
+    if (pref == 1) return UIUserInterfaceStyleLight;
+    if (pref == 2) return UIUserInterfaceStyleDark;
+    if (style == UIUserInterfaceStyleUnspecified) style = self.traitCollection.userInterfaceStyle;
+    return style;
 }
 
 - (void)layoutSubviews {
@@ -128,9 +137,7 @@
 }
 
 - (void)applyStyleForUserInterfaceStyle:(UIUserInterfaceStyle)style {
-    if (style == UIUserInterfaceStyleUnspecified) {
-        style = self.traitCollection.userInterfaceStyle;
-    }
+    style = [self resolveStyle:style];
     _lastStyle = style;
     BOOL reduce = UIAccessibilityIsReduceTransparencyEnabled();
 
@@ -151,26 +158,31 @@
     BOOL dark = (style == UIUserInterfaceStyleDark);
     // 让材质跟随明暗：深色内容用 dark material，避免变成一块浅灰板。
     _blurView.effect = [self blurEffectForStyle:[LTPrefs blurStyle] dark:dark];
-    _tintView.backgroundColor = dark
-        ? [[UIColor blackColor] colorWithAlphaComponent:0.10]
-        : [[UIColor whiteColor] colorWithAlphaComponent:0.07];
 
-    CGFloat sheen = dark ? 0.14 : 0.30;
+    // 乳白磨砂（参考图）：白霜感明显、但仍是半透明，能透出模糊的背景。
+    // 深色磨砂：只做很轻的压暗，保证白色图标可读，不要糊成黑板。
+    _tintView.backgroundColor = dark
+        ? [[UIColor whiteColor] colorWithAlphaComponent:0.06]
+        : [[UIColor whiteColor] colorWithAlphaComponent:0.34];
+
+    // 顶部高光：参考图是明显的柔光过渡。
+    CGFloat sheen = dark ? 0.18 : 0.55;
     _specularLayer.colors = @[
         (id)[[UIColor whiteColor] colorWithAlphaComponent:sheen].CGColor,
-        (id)[[UIColor whiteColor] colorWithAlphaComponent:sheen * 0.18].CGColor,
+        (id)[[UIColor whiteColor] colorWithAlphaComponent:sheen * 0.28].CGColor,
         (id)[UIColor clearColor].CGColor
     ];
     _rimLayer.strokeColor = (dark
-        ? [[UIColor whiteColor] colorWithAlphaComponent:0.16]
-        : [[UIColor whiteColor] colorWithAlphaComponent:0.30]).CGColor;
+        ? [[UIColor whiteColor] colorWithAlphaComponent:0.24]
+        : [[UIColor whiteColor] colorWithAlphaComponent:0.62]).CGColor;
     _topHairline.strokeColor = (dark
-        ? [[UIColor whiteColor] colorWithAlphaComponent:0.22]
-        : [[UIColor whiteColor] colorWithAlphaComponent:0.50]).CGColor;
+        ? [[UIColor whiteColor] colorWithAlphaComponent:0.28]
+        : [[UIColor whiteColor] colorWithAlphaComponent:0.80]).CGColor;
 
+    // 选中胶囊：参考图里是比玻璃更亮的一层。
     _selectionPill.backgroundColor = (dark
-        ? [[UIColor whiteColor] colorWithAlphaComponent:0.13]
-        : [[UIColor blackColor] colorWithAlphaComponent:0.08]);
+        ? [[UIColor whiteColor] colorWithAlphaComponent:0.14]
+        : [[UIColor whiteColor] colorWithAlphaComponent:0.55]);
 }
 
 - (void)setSelectionFrame:(CGRect)frame animated:(BOOL)animated {

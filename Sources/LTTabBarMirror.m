@@ -236,6 +236,8 @@ BOOL LTDYYYDetected(void) {
     objc_setAssociatedObject(bar, &kLTBarPreparedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 
     bar.clipsToBounds = NO;
+    bar.backgroundColor = [UIColor clearColor];
+    bar.opaque = NO;
     if ([bar isKindOfClass:[UITabBar class]]) {
         UITabBar *tb = (UITabBar *)bar;
         if (@available(iOS 13.0, *)) {
@@ -260,7 +262,9 @@ BOOL LTDYYYDetected(void) {
         NSString *cn = NSStringFromClass([v class]);
         if ([cn containsString:@"BarBackground"] ||
             [cn containsString:@"EffectBackground"] ||
-            [cn containsString:@"BlurView"]) {
+            [cn containsString:@"BlurView"] ||
+            [cn containsString:@"GradientView"] ||
+            [cn containsString:@"BackgroundView"]) {
             if (v.alpha != 0.0) v.alpha = 0.0;
         }
     }
@@ -317,6 +321,42 @@ BOOL LTDYYYDetected(void) {
     [_glass applyStyleForUserInterfaceStyle:
         LTBarUsesLightInk(bar, buttons) ? UIUserInterfaceStyleDark : UIUserInterfaceStyleLight];
     _glass.hidden = NO;
+
+    // 选中胶囊：直接读原生按钮的 frame，套在玻璃里，跟随抖音/DYYY 的布局。
+    if ([LTPrefs showSelectionPill]) {
+        UIView *selected = nil;
+        NSInteger selIdx = -1;
+        for (NSInteger i = 0; i < (NSInteger)buttons.count; i++) {
+            id b = buttons[i];
+            id sv = LTGet(b, @"selected");
+            if (sv && [sv respondsToSelector:@selector(boolValue)] && [sv boolValue]) {
+                selected = [b isKindOfClass:[UIView class]] ? (UIView *)b : nil;
+                selIdx = i;
+                break;
+            }
+        }
+        if (!selected) {
+            id vc = LTControllerForView(bar);
+            if (LTHas(vc, NSSelectorFromString(@"selectedIndex"))) {
+                id raw = LTGet(vc, @"selectedIndex");
+                NSInteger idx = [raw isKindOfClass:[NSNumber class]] ? [raw integerValue] : -1;
+                if (idx >= 0 && idx < (NSInteger)buttons.count) {
+                    id b = buttons[idx];
+                    selected = [b isKindOfClass:[UIView class]] ? (UIView *)b : nil;
+                }
+            }
+        }
+        if (selected && selected.superview) {
+            CGRect bf = [selected.superview convertRect:selected.frame toView:bar];
+            CGRect inGlass = CGRectOffset(bf, -CGRectGetMinX(_container.frame), -CGRectGetMinY(_container.frame));
+            inGlass = CGRectInset(inGlass, 6, 5);
+            [_glass setSelectionFrame:inGlass animated:NO];
+        } else {
+            [_glass setSelectionFrame:CGRectZero animated:NO];
+        }
+    } else {
+        [_glass setSelectionFrame:CGRectZero animated:NO];
+    }
 }
 
 #pragma mark - 独立模式：自建胶囊

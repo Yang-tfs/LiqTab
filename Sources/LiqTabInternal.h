@@ -29,6 +29,8 @@ typedef NS_ENUM(NSInteger, LTOperatingMode) {
 + (BOOL)hapticsEnabled;
 + (BOOL)debugLog;
 + (BOOL)forceNativeFlags; // whether to inject ABTest keys at all
++ (NSInteger)glassAppearance; // 0 auto, 1 light (乳白磨砂), 2 dark (深色磨砂)
++ (BOOL)showSelectionPill;
 @end
 
 #pragma mark - Glass view

@@ -20,6 +20,8 @@ static NSString * const kShowLabelsKey   = @"LiqTab.showLabels";
 static NSString * const kHapticsKey      = @"LiqTab.haptics";
 static NSString * const kDebugLogKey     = @"LiqTab.debugLog";
 static NSString * const kForceNativeKey  = @"LiqTab.forceNativeFlags";
+static NSString * const kAppearanceKey   = @"LiqTab.glassAppearance"; // 0 auto, 1 light, 2 dark
+static NSString * const kSelectionKey    = @"LiqTab.showSelectionPill";
 
 @implementation LTPrefs
 
@@ -91,6 +93,18 @@ static NSString * const kForceNativeKey  = @"LiqTab.forceNativeFlags";
 
 + (BOOL)forceNativeFlags {
     id v = [[self defaults] objectForKey:kForceNativeKey];
+    return v ? [v boolValue] : YES;
+}
+
++ (NSInteger)glassAppearance {
+    id v = [[self defaults] objectForKey:kAppearanceKey];
+    NSInteger n = v ? [v integerValue] : 0;
+    if (n < 0 || n > 2) n = 0;
+    return n;
+}
+
++ (BOOL)showSelectionPill {
+    id v = [[self defaults] objectForKey:kSelectionKey];
     return v ? [v boolValue] : YES;
 }
 
