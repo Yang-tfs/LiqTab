@@ -10,7 +10,7 @@
 #import <objc/runtime.h>
 #import <objc/message.h>
 
-static char kLTMirrorKey;
+char kLTMirrorKey;
 
 #pragma mark - Small reflection helpers
 
