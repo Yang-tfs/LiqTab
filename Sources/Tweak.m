@@ -24,7 +24,7 @@ static IMP sOriginalTabBarLayout = NULL;
 static Class sTabBarClass = Nil;
 
 static void LTTabBarLayoutHook(id self, SEL _cmd) {
-    if (sOriginalTabBarLayout) sOriginalTabBarLayout(self, _cmd);
+    if (sOriginalTabBarLayout) ((void (*)(id, SEL))sOriginalTabBarLayout)(self, _cmd);
 
     UIView *bar = (UIView *)self;
     LTTabBarMirror *mirror = objc_getAssociatedObject(bar, &kLTMirrorKey);
@@ -49,7 +49,7 @@ static IMP sOriginalControllerLayout = NULL;
 static Class sControllerClass = Nil;
 
 static void LTControllerLayoutHook(id self, SEL _cmd) {
-    if (sOriginalControllerLayout) sOriginalControllerLayout(self, _cmd);
+    if (sOriginalControllerLayout) ((void (*)(id, SEL))sOriginalControllerLayout)(self, _cmd);
     UIView *bar = ((UIViewController *)self).viewIfLoaded;
     if (!bar) return;
     // Find any mirror attached to a descendant tab bar.

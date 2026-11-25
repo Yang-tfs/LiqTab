@@ -39,7 +39,7 @@ static void LTSetABTestDataHook(id self, SEL _cmd, NSDictionary *data) {
         return;
     }
     if (sInjecting) {
-        sOriginalSetABTestData(self, _cmd, data);
+        ((void (*)(id, SEL, id))sOriginalSetABTestData)(self, _cmd, data);
         return;
     }
     NSMutableDictionary *patched = nil;
@@ -51,7 +51,7 @@ static void LTSetABTestDataHook(id self, SEL _cmd, NSDictionary *data) {
         LTInjectFlagsIntoDictionary(patched);
     }
     sInjecting = YES;
-    sOriginalSetABTestData(self, _cmd, [patched copy]);
+    ((void (*)(id, SEL, id))sOriginalSetABTestData)(self, _cmd, [patched copy]);
     sInjecting = NO;
 }
 

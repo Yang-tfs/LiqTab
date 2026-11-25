@@ -75,3 +75,5 @@ IMP LTReplaceMethod(Class cls, SEL sel, IMP newImp);
 
 // Shared associated-object key (must be the SAME address in every translation unit).
 extern char kLTMirrorKey;
+
+NS_ASSUME_NONNULL_END
