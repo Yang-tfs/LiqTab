@@ -1,0 +1,9 @@
+Package: com.yang.liqtab
+Name: LiqTab
+Version: 1.0.0
+Architecture: iphoneos-arm64
+Description: iOS 16.3.1 liquid floating tab bar for Douyin 41.2.0. No Substrate dependency; inject with TrollFools.
+Maintainer: Yang
+Author: Yang
+Section: Tweaks
+Depends: firmware (>= 15.0)

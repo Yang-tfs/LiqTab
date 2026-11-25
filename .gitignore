@@ -1,0 +1,13 @@
+# Decrypted IPA is large and contains third-party data — never commit it.
+*.ipa
+Aweme.bin
+
+# Theos build artifacts
+.theos/
+packages/
+artifacts/
+theos/
+
+# macOS / Windows junk
+.DS_Store
+Thumbs.db

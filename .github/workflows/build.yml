@@ -1,0 +1,68 @@
+name: Build LiqTab dylib
+
+on:
+  push:
+    branches: [ "**" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+
+      - name: Ensure wget is available
+        shell: bash
+        run: brew install wget >/dev/null 2>&1 || true
+
+      - name: Cache Theos + iOS SDKs
+        id: theos-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/theos
+          key: ${{ runner.os }}-theos-${{ hashFiles('Makefile') }}
+
+      - name: Install Theos and iOS SDK
+        # Installs Theos, ldid, make and the iOS SDKs on the macOS runner.
+        # See https://github.com/Randomblock1/theos-action
+        uses: Randomblock1/theos-action@v1
+        with:
+          theos-dir: ${{ github.workspace }}/theos
+          theos-src: https://github.com/theos/theos
+          theos-sdks: https://github.com/theos/sdks
+          theos-sdks-branch: master
+
+      - name: Build dylib and .deb package
+        shell: bash
+        run: |
+          set -e
+          cd "${{ github.workspace }}"
+          echo "THEOS=$THEOS"
+          ls -la "$THEOS/sdks" | head -30
+          rm -rf packages .theos/obj
+          make clean || true
+          make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
+
+          echo "---- build outputs ----"
+          find .theos -name '*.dylib' -print
+          find packages -name '*.deb' -print
+
+          # Normalise the artefacts into one folder for upload.
+          mkdir -p artifacts
+          find .theos -name 'LiqTab.dylib' -exec cp {} artifacts/ \;
+          find packages -name '*.deb' -exec cp {} artifacts/ \;
+          ls -lh artifacts/
+
+      - name: Upload artefacts (dylib + deb)
+        uses: actions/upload-artifact@v7
+        with:
+          name: LiqTab-ios16-arm64
+          path: artifacts/*
+          if-no-files-found: error
+          retention-days: 90
